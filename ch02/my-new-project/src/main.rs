@@ -4,7 +4,6 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use http_body_util::StreamBody;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
@@ -25,10 +24,10 @@ async fn main() {
 fn app() -> Router {
     Router::new()
         .route("/", get(|| async { "Hello, World!" }))
-        .route("/video", get(stream_video))
+        .route("/video", get(get_video))
 }
 
-async fn stream_video() -> impl IntoResponse {
+async fn get_video() -> impl IntoResponse {
     let file_path = "video/SampleVideo_1280x720_1mb.mp4";
     println!("Serving video from: {file_path}");
     match File::open(&file_path).await {
