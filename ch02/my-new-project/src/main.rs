@@ -4,14 +4,17 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
+use std::env;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
 #[tokio::main]
 async fn main() {
+    let port = env::var("PORT").expect("PORT environment variable not set");
+
     let app = app();
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .unwrap();
 
