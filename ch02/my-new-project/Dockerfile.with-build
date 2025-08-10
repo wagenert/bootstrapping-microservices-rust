@@ -1,0 +1,18 @@
+FROM ubuntu:24.04
+
+WORKDIR /usr/src/app
+#COPY Cargo.toml Cargo.lock src video  ./
+#COPY target/release/my-new-project .
+#COPY ./video ./video
+COPY . .
+RUN apt-get update -y
+RUN apt-get upgrade -y
+RUN apt-get install -y \
+    build-essential \
+    curl 
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN ls -la .
+RUN cargo build --release
+CMD ["cargo", "run", "--release"]
