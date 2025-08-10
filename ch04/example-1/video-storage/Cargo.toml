@@ -1,0 +1,10 @@
+[package]
+name = "video-storage"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.4"
+object_store = { version = "0.12.3", features = ["azure"] }
+serde = { version = "1.0.219", features = ["derive"] }
+tokio = { version = "1.47.1", features = ["full"] }
