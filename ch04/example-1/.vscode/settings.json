@@ -1,0 +1,9 @@
+{
+    "rust-analyser.linkedProjects": [
+        {
+            "workspaceRoot": "${workspaceFolder}/src"
+        },
+        "./video-streaming/Cargo.toml",
+        "./video-storage/Cargo.toml",
+    ],
+}
