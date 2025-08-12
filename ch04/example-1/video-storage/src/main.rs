@@ -39,6 +39,9 @@ async fn main() {
     let port = env::var("PORT").expect("PORT environment variable not set");
     let storage_account_name =
         env::var("STORAGE_ACCOUNT_NAME").expect("STORAGE_ACCOUNT_NAME variable not set");
+    // Collect the necessary data from the environment to authorize access to blob storage.
+    // A description on how to register an app and set up a service principal can be found in the Azure documentation
+    // at https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal.
     let tenant_id = env::var("TENANT_ID").expect("TENANT_ID variable not set");
     let client_id = env::var("CLIENT_ID").expect("CLIENT_ID variable not set");
     let client_secret_string = env::var("CLIENT_SECRET").expect("CLIENT_SECRET variable not set");
@@ -79,13 +82,13 @@ fn create_blob_service(
     //let credentials = DefaultAzureCredential::new()?;
     let credentials =
         ClientSecretCredential::new(tenant_id.as_str(), client_id, client_secret, None)?;
-    let blob_client = BlobContainerClient::new(
+    let blob_container_client = BlobContainerClient::new(
         format!("https://{storage_account}.blob.core.windows.net/").as_str(), // endpoint
         "videos".to_string(),                                                 // container name
         credentials.clone(),                                                  // credential
         Some(BlobContainerClientOptions::default()),                          // BlobClient options
     )?;
-    Ok(blob_client)
+    Ok(blob_container_client)
 }
 
 async fn get_video(
