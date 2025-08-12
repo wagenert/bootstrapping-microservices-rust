@@ -1,27 +1,31 @@
 use axum::{
     Router,
     extract::{Query, State},
-    http::{HeaderMap, HeaderValue},
     response::IntoResponse,
     routing::get,
 };
-use object_store::azure::{MicrosoftAzure, MicrosoftAzureBuilder};
+use azure_core::http::StatusCode;
+use azure_identity::ClientSecretCredential;
+use azure_storage_blob::{
+    BlobClient, BlobClientOptions,
+    models::{BlobClientDownloadOptions, BlobClientGetPropertiesOptions},
+};
 use serde::Deserialize;
-use std::env;
+use std::{env, error::Error};
 use std::{result::Result, sync::Arc};
-use tokio::fs::File;
-use tokio_util::io::ReaderStream;
 
 #[derive(Deserialize)]
-struct VideoName(String);
+struct VideoName {
+    name: String,
+}
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct AppState {
-    blob_server: Arc<MicrosoftAzure>,
+    blob_server: Arc<BlobClient>,
 }
 
 impl AppState {
-    fn new(azure: MicrosoftAzure) -> Self {
+    fn new(azure: BlobClient) -> Self {
         Self {
             blob_server: Arc::new(azure),
         }
@@ -33,11 +37,9 @@ async fn main() {
     let port = env::var("PORT").expect("PORT environment variable not set");
     let storage_account_name =
         env::var("STORAGE_ACCOUNT_NAME").expect("STORAGE_ACCOUNT_NAME variable not set");
-    let storage_access_key =
-        env::var("STORAGE_ACCESS_KEY").expect("STORAGE_ACCESS_KEY variable not set");
 
-    let azure_blob_service = create_blob_service(storage_account_name, storage_access_key)
-        .expect("Can not create BLOB service");
+    let azure_blob_service =
+        create_blob_service(storage_account_name).expect("Can not create BLOB service");
 
     let app_state = AppState::new(azure_blob_service);
 
@@ -55,41 +57,52 @@ async fn main() {
 
 fn app(state: AppState) -> Router {
     Router::new()
-        .with_state(state)
         .route("/video", get(get_video))
+        .with_state(state)
 }
-fn create_blob_service(
-    storage_account: String,
-    storage_key: String,
-) -> Result<MicrosoftAzure, object_store::Error> {
-    MicrosoftAzureBuilder::new()
-        .with_account(storage_account)
-        .with_access_key(storage_key)
-        .with_container_name("videos")
-        .build()
+fn create_blob_service(storage_account: String) -> Result<BlobClient, Box<dyn Error>> {
+    //let credentials = DefaultAzureCredential::new()?;
+    let tennant_id = "e02ca37d-7651-4065-b95a-bc1ead68c51d";
+    let client_id = "17d8a4ce-8c47-4ee5-8671-8de27c96fd05";
+    let secret = azure_core::credentials::Secret::new("qVV8Q~-qRcf7Aqvu~-M4faf_iiXcldTGvu5-kaAs");
+    let credentials = ClientSecretCredential::new(tennant_id, client_id.to_string(), secret, None)?;
+    let blob_client = BlobClient::new(
+        format!("https://{storage_account}.blob.core.windows.net/").as_str(), // endpoint
+        "videos".to_string(),                                                 // container name
+        "SampleVideo_1280x720_1mb.mp4".to_string(),                           // blob name
+        credentials.clone(),                                                  // credential
+        Some(BlobClientOptions::default()),                                   // BlobClient options
+    )?;
+    Ok(blob_client)
 }
 
 async fn get_video(
-    State(state): State<Arc<AppState>>,
-    Query(vid_name): Query<VideoName>,
+    State(state): State<AppState>,
+    Query(_vid_name): Query<VideoName>,
 ) -> impl IntoResponse {
-    let file_path = "video/SampleVideo_1280x720_1mb.mp4";
-    println!("Serving video from: {file_path}");
-    match File::open(&file_path).await {
-        Ok(file) => {
-            let stream = ReaderStream::new(file);
-            let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", HeaderValue::from_static("video/mp4"));
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::OK)
-                .header("Content-Type", "video/mp4")
-                .body(axum::body::Body::from_stream(stream))
-                .unwrap()
+    println!("Retrieving properties");
+    let props = state
+        .blob_server
+        .get_properties(Some(BlobClientGetPropertiesOptions::default()))
+        .await
+        .unwrap();
+    match props.status() {
+        StatusCode::Ok => {
+            // Access properties directly from props.body
+            let properties = props.into_raw_body();
+            // You can now use `properties` as needed
         }
-        Err(err) => (
-            axum::http::StatusCode::NOT_FOUND,
-            format!("File not found: {err}"),
-        )
-            .into_response(),
+        _ => panic!("Request for properties failed!"),
+    }
+    let blob = state
+        .blob_server
+        .download(Some(BlobClientDownloadOptions::default()))
+        .await
+        .unwrap();
+    match blob.status() {
+        StatusCode::Ok => {
+            let bytes = blob.into_raw_body();
+        }
+        _ => panic!("Request for blob failed!"),
     }
 }
