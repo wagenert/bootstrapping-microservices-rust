@@ -39,9 +39,12 @@ async fn main() {
         env::var("STORAGE_ACCOUNT_NAME").expect("STORAGE_ACCOUNT_NAME variable not set");
     let storage_access_secret =
         env::var("STORAGE_ACCESS_SECRET").expect("STORAGE_ACCESS_SECRET variable not set");
+    let tenant_id = env::var("TENANT_ID").expect("TENANT_ID variable not set");
+    let client_id = env::var("CLIENT_ID").expect("CLIENT_ID variable not set");
     let secret = azure_core::credentials::Secret::new(storage_access_secret);
     let azure_blob_service =
-        create_blob_service(storage_account_name, secret).expect("Can not create BLOB service");
+        create_blob_service(storage_account_name, tenant_id, client_id, secret)
+            .expect("Can not create BLOB service");
 
     let app_state = AppState::new(azure_blob_service);
 
@@ -64,11 +67,11 @@ fn app(state: AppState) -> Router {
 }
 fn create_blob_service(
     storage_account: String,
+    tenant_id: &str,
+    client_id: &str,
     secret: azure_core::credentials::Secret,
 ) -> Result<BlobClient, Box<dyn Error>> {
     //let credentials = DefaultAzureCredential::new()?;
-    let tennant_id = "e02ca37d-7651-4065-b95a-bc1ead68c51d";
-    let client_id = "17d8a4ce-8c47-4ee5-8671-8de27c96fd05";
     let credentials = ClientSecretCredential::new(tennant_id, client_id.to_string(), secret, None)?;
     let blob_client = BlobClient::new(
         format!("https://{storage_account}.blob.core.windows.net/").as_str(), // endpoint
