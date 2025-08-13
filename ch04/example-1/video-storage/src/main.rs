@@ -102,8 +102,8 @@ async fn get_video(
     let props = blob_client
         .get_properties(Some(BlobClientGetPropertiesOptions::default()))
         .await
-        .unwrap();
-
+        .expect("props call did not return sucessfully");
+    println!("Properties received!");
     let blob_properties = match props.status() {
         StatusCode::Ok => {
             // Access properties directly from props.body
