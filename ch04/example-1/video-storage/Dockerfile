@@ -1,8 +1,10 @@
-FROM ubuntu:24.04
+FROM rust:1.89
 
 WORKDIR /usr/src/app
-COPY ./video ./video
 RUN apt-get update -y
 RUN apt-get upgrade -y
-COPY ./target/aarch64-unknown-linux-gnu/release/video-storage ./ 
-CMD ["./video-storage"]
+COPY . .
+RUN ls -l
+RUN cargo install --path .
+
+CMD ["video-storage"]
