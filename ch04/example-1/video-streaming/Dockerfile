@@ -1,7 +1,10 @@
-FROM ubuntu:24.04
+FROM rust:1.89
 
 WORKDIR /usr/src/app
 RUN apt-get update -y
 RUN apt-get upgrade -y
-COPY ./target/release/video-streaming ./ 
-CMD ["./video-streaming"]
+COPY . .
+RUN ls -l
+RUN cargo install --path . 
+
+CMD ["video-streaming"]
