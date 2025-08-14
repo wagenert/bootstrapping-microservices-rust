@@ -2,7 +2,7 @@ FROM rust:1.89-bookworm as builder
 
 WORKDIR /usr/src/app
 COPY . .
-RUN cargo install --debug --path . 
+RUN cargo install --path . 
 
 FROM debian:bookworm-slim
 RUN apt-get update 
