@@ -1,7 +1,7 @@
 services:
   
   db:
-    image: mongo:latest
+    image: mongodb/mongodb-community-server:latest
     container_name: db
     ports: 
       - "4000:27017"
