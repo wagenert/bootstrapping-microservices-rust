@@ -5,16 +5,18 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use mongodb::bson::Uuid;
+use mongodb::bson::doc;
 use serde::Deserialize;
 use std::{env, str::FromStr};
 
-struct Item {
-    id: mongodb::bson::oid::ObjectId,
+#[derive(Deserialize)]
+struct VideoId {
+    id: String,
 }
 
 #[derive(Deserialize)]
 struct Video {
+    #[serde(rename = "videoPath")]
     video_path: String,
 }
 
@@ -44,7 +46,7 @@ async fn main() {
         .build();
     client_options.server_api = Some(server_api);
     let client = mongodb::Client::with_options(client_options).expect("Can not create clients");
-    client.database("videos");
+    client.database("video-streaming");
     let app_state = AppState {
         video_storage_host,
         video_storage_port,
@@ -69,32 +71,48 @@ fn app(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn get_video(State(state): State<AppState>, Query(id): Query<String>) -> impl IntoResponse {
-    let video_id = mongodb::bson::oid::ObjectId::from_str(&id);
+async fn get_video(
+    State(state): State<AppState>,
+    Query(video_id): Query<VideoId>,
+) -> impl IntoResponse {
+    let video_id =
+        mongodb::bson::oid::ObjectId::from_str(&video_id.id).expect("Invalid video ID format");
+    println!("Successfully created video id: {video_id}");
     let videos = state
         .client
         .database("video-streaming")
         .collection::<Video>("videos");
-    let video_record = videos.find_one(Item { id: video_id });
-    let video_storage_host = &state.video_storage_host;
-    let video_storage_port = &state.video_storage_port;
-    let forward_response = reqwest::Client::new()
-        .get(format!("http://{video_storage_host}:{video_storage_port}/video?path=SampleVideo_1280x720_1mb.mp4"))
-        .send()
-        .await
-        .expect("Failed to forward request");
-    let status_code = forward_response.status();
-    let headers = forward_response.headers().clone();
-    let video_data = forward_response.bytes_stream();
-    (
-        status_code,
-        (headers, Body::from_stream(video_data)).into_response(),
-    )
-        .into_response()
-    /*    axum::response::Response::builder()
-    .status(status_code)
-    .header("Content-Type", "video/mp4")
-    .body(Body::from_stream(video_data))
-    .unwrap()
-    */
+    println!("Successfully connected to the videos collection");
+    let video_record = videos.find_one(doc! { "_id": &video_id });
+    match video_record.await {
+        Ok(Some(video)) => {
+            let video_path = video.video_path;
+            let video_storage_host = &state.video_storage_host;
+            let video_storage_port = &state.video_storage_port;
+            let forward_response = reqwest::Client::new()
+                .get(format!(
+                    "http://{video_storage_host}:{video_storage_port}/video?path={video_path}"
+                ))
+                .send()
+                .await
+                .expect("Failed to forward request");
+            let status_code = forward_response.status();
+            let headers = forward_response.headers().clone();
+            let video_data = forward_response.bytes_stream();
+            (
+                status_code,
+                (headers, Body::from_stream(video_data)).into_response(),
+            )
+                .into_response()
+        }
+        Ok(None) => (axum::http::StatusCode::NOT_FOUND, "Video not found").into_response(),
+        Err(e) => {
+            eprintln!("Error fetching video: {}", e);
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error",
+            )
+                .into_response()
+        }
+    }
 }

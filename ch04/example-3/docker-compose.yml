@@ -28,9 +28,9 @@ services:
     ports:
       - "4002:3000"
     environment:
-      - PORT=80
+      - PORT=3000
       - VIDEO_STORAGE_HOST=video-storage
       - VIDEO_STORAGE_PORT=80
-      - DBHOST=mongodb://db:27017
+      - DBHOST=db:27017
       - DBNAME=video-streaming
     restart: "no"
