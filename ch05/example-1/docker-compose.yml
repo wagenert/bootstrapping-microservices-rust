@@ -14,6 +14,7 @@ services:
       - "4001:80"
     volumes:
       - ./video-storage:/usr/src/app
+      - $HOME/.cargo/rgistry:/root/.cargo/registry
     environment:
       - PORT=80
       - STORAGE_ACCOUNT_NAME=${STORAGE_ACCOUNT_NAME}
@@ -31,6 +32,7 @@ services:
       - "4002:3000"
     volumes:
       - ./video-streaming:/usr/src/app
+      - $HOME/.cargo/rgistry:/root/.cargo/registry
     environment:
       - PORT=3000
       - VIDEO_STORAGE_HOST=video-storage
@@ -47,6 +49,7 @@ services:
     container_name: history-service
     volumes:
       - ./history:/usr/src/app
+      - $HOME/.cargo/rgistry:/root/.cargo/registry
     ports:
       - "4003:80"
     environment:
