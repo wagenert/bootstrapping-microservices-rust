@@ -4,7 +4,7 @@ use std::env;
 #[tokio::main]
 async fn main() {
     let port = env::var("PORT").expect("PORT environment variable not set");
-
+    // Extremely important comment
     let app = app();
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
