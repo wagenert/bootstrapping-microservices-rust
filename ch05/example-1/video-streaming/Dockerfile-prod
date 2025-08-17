@@ -1,13 +1,17 @@
-FROM rust:1.89-bookworm as builder
-
-WORKDIR /usr/src/app
-COPY . .
-RUN cargo install --path . 
-
-FROM debian:bookworm-slim
+FROM rust:1.89-bookworm AS base
 RUN apt-get update 
 RUN apt-get upgrade -y
 RUN apt-get install -y openssl
 RUN rm -rf /var/lib/apt/lists/*
-COPY --from=builder /usr/local/cargo/bin/video-streaming /usr/local/bin/video-streaming
-CMD ["video-streaming"]
+RUN cargo install cargo-chef
+
+FROM base AS planner
+WORKDIR /usr/src/app
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM base AS builder
+WORKDIR /usr/src/app
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+CMD ["cargo", "run", "--release"]
