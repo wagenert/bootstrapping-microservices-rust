@@ -3,7 +3,8 @@ RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install -y openssl pkg-config libssl-dev curl 
 RUN rm -rf /var/lib/apt/lists/*
-RUN cargo install cargo-chef
+RUN cargo install --locked cargo-chef sccache 
+ENV RUSTC_WRAPPER=sccache SCCACHE_DIR=/sccache
 
 FROM base AS planner
 WORKDIR /usr/src/app
@@ -14,5 +15,8 @@ FROM base AS builder
 WORKDIR /usr/src/app
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+    cargo chef cook --release --recipe-path recipe.json
 CMD ["cargo", "run", "--release"]
