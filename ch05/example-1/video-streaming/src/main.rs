@@ -25,7 +25,7 @@ struct Video {
 struct AppState {
     video_storage_host: String,
     video_storage_port: String,
-    client: mongodb::Client,
+    videos: mongodb::Collection<Video>,
 }
 
 #[tokio::main]
@@ -47,11 +47,12 @@ async fn main() {
         .build();
     client_options.server_api = Some(server_api);
     let client = mongodb::Client::with_options(client_options).expect("Can not create clients");
-    client.database("video-streaming");
+    let db = client.database("video-streaming");
+    let videos = db.collection::<Video>("videos");
     let app_state = AppState {
         video_storage_host,
         video_storage_port,
-        client,
+        videos,
     };
     let app = app(app_state);
 
@@ -73,23 +74,19 @@ fn app(state: AppState) -> Router {
 }
 
 async fn get_video(
-    State(state): State<AppState>,
+    State(app_state): State<AppState>,
     Query(video_id): Query<VideoId>,
 ) -> impl IntoResponse {
     let video_id =
         mongodb::bson::oid::ObjectId::from_str(&video_id.id).expect("Invalid video ID format");
     println!("Successfully created video id: {video_id}");
-    let videos = state
-        .client
-        .database("video-streaming")
-        .collection::<Video>("videos");
     println!("Successfully connected to the videos collection");
-    let video_record = videos.find_one(doc! { "_id": &video_id });
+    let video_record = app_state.videos.find_one(doc! { "_id": &video_id });
     match video_record.await {
         Ok(Some(video)) => {
             let video_path = video.video_path;
-            let video_storage_host = &state.video_storage_host;
-            let video_storage_port = &state.video_storage_port;
+            let video_storage_host = &app_state.video_storage_host;
+            let video_storage_port = &app_state.video_storage_port;
             let forward_response = reqwest::Client::new()
                 .get(format!(
                     "http://{video_storage_host}:{video_storage_port}/video?path={video_path}"
