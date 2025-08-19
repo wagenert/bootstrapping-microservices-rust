@@ -7,6 +7,7 @@ use axum::{
 };
 use mongodb::bson::doc;
 use serde::Deserialize;
+use serde_json::json;
 use std::{env, str::FromStr};
 
 #[derive(Deserialize)]
@@ -97,6 +98,13 @@ async fn get_video(
                 .await
                 .expect("Failed to forward request");
             let status_code = forward_response.status();
+            if status_code == axum::http::StatusCode::OK {
+                tokio::spawn(async move {
+                    if let Err(e) = send_viewed_message(video_path).await {
+                        eprintln!("Error sending the viewed message: {e}");
+                    }
+                });
+            }
             let headers = forward_response.headers().clone();
             let video_data = forward_response.bytes_stream();
             (
@@ -115,4 +123,16 @@ async fn get_video(
                 .into_response()
         }
     }
+}
+
+async fn send_viewed_message(video_path: String) -> Result<reqwest::Response, reqwest::Error> {
+    let json_body = json!({
+        "video_path": video_path
+    });
+    reqwest::Client::new()
+        .post("http://history/viewed")
+        .body(json_body.to_string())
+        .header("Content-Type", "application/json")
+        .send()
+        .await
 }

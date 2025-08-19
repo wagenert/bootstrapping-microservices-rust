@@ -1,4 +1,9 @@
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    body::Body,
+    response::IntoResponse,
+    routing::{get, post},
+};
 use std::env;
 
 #[tokio::main]
@@ -18,5 +23,12 @@ async fn main() {
 }
 
 fn app() -> Router {
-    Router::new().route("/", get(|| async { "Hello, World!" }))
+    Router::new()
+        .route("/", get(|| async { "Hello, World!" }))
+        .route("/viewed", post(handle_viewed_request))
+}
+
+async fn handle_viewed_request() -> impl IntoResponse {
+    println!("Received viewed message");
+    (axum::http::StatusCode::OK, Body::from("")).into_response()
 }
