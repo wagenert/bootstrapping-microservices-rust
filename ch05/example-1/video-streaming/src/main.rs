@@ -38,8 +38,7 @@ async fn main() {
     let db_host = env::var("DBHOST").expect("DBHOST environment variable not set");
     let db_name = env::var("DBNAME").expect("DBNAME environment variable not set");
 
-    let connection_string = format!("mongodb://{db_host}/{db_name}");
-    let mut client_options = mongodb::options::ClientOptions::parse(connection_string)
+    let mut client_options = mongodb::options::ClientOptions::parse(db_host)
         .await
         .expect("Can not create connection options");
     let server_api = mongodb::options::ServerApi::builder()
@@ -47,7 +46,7 @@ async fn main() {
         .build();
     client_options.server_api = Some(server_api);
     let client = mongodb::Client::with_options(client_options).expect("Can not create clients");
-    let db = client.database("video-streaming");
+    let db = client.database(&db_name);
     let videos = db.collection::<Video>("videos");
     let app_state = AppState {
         video_storage_host,
